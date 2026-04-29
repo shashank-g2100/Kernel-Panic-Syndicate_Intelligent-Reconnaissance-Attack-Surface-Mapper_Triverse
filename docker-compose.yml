@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  aegis-asm:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: unless-stopped
+
+  # Optional real infrastructure if needed (simulated for now)
+  # mongodb:
+  #   image: mongo:latest
+  #   ports:
+  #     - "27017:27017"
+  
+  # redis:
+  #   image: redis:alpine
+  #   ports:
+  #     - "6379:6379"
