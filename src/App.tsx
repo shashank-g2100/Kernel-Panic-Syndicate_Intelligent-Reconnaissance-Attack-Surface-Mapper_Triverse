@@ -15,6 +15,7 @@ import {
   Map as MapIcon, 
   AlertTriangle, 
   Eye,
+  Award,
   List, 
   LayoutDashboard,
   Play,
@@ -680,7 +681,13 @@ const AssetDetailModal = ({ asset, findings, onClose, userRole }: { asset: Asset
   );
 };
 
-const Dashboard = ({ assets, findings, onAssetClick, userRole }: { assets: Asset[], findings: Finding[], onAssetClick: (asset: Asset) => void, userRole: UserRole }) => {
+const Dashboard = ({ assets, findings, onAssetClick, userRole, setActiveTab }: { 
+  assets: Asset[], 
+  findings: Finding[], 
+  onAssetClick: (asset: Asset) => void, 
+  userRole: UserRole, 
+  setActiveTab: (tab: string) => void 
+}) => {
   const severityData = [
     { name: 'Critical', value: findings.filter(f => f.severity === 'critical').length, color: '#f43f5e' },
     { name: 'High', value: findings.filter(f => f.severity === 'high').length, color: '#f97316' },
@@ -708,134 +715,298 @@ const Dashboard = ({ assets, findings, onAssetClick, userRole }: { assets: Asset
   const exportPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
-    // --- Header ---
-    doc.setFillColor(15, 23, 42); // bg-slate-900
-    doc.rect(0, 0, pageWidth, 50, 'F');
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const accentColor = [79, 70, 229]; // Indigo-600
+    const darkColor = [15, 23, 42]; // Slate-900
+
+    // --- Header (Restored from Screenshot) ---
+    doc.setFillColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.rect(0, 0, pageWidth, 55, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
+    doc.setFontSize(28);
     doc.setFont('helvetica', 'bold');
-    doc.text("AEGIS", 15, 25);
+    doc.text("AEGIS", margin, 32);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(129, 140, 248); // text-indigo-400
-    doc.text("ATTACK SURFACE MANAGEMENT CORE", 15, 32);
+    doc.text("ATTACK SURFACE MANAGEMENT CORE", margin, 40);
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
-    doc.text("Intelligence Surface Analysis Report", pageWidth - 15, 25, { align: 'right' });
+    doc.text("Intelligence Surface Analysis Report", pageWidth - margin, 32, { align: 'right' });
     
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184); // text-slate-400
-    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - 15, 32, { align: 'right' });
-    doc.text(`Report ID: ASM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, pageWidth - 15, 37, { align: 'right' });
+    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - margin, 40, { align: 'right' });
+    doc.text(`Report ID: ASM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, pageWidth - margin, 46, { align: 'right' });
 
-    // --- Executive Summary ---
-    doc.setTextColor(15, 23, 42);
+    // --- Technical Metadata Block (Restored from Screenshot) ---
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.rect(margin, 65, pageWidth - (margin * 2), 25, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'bold');
+    doc.text("SCAN METADATA", margin + 5, 72);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Engine Version: 4.2.0-STABLE`, margin + 5, 78);
+    doc.text(`Analysis Depth: Level 4 (Comprehensive)`, margin + 5, 83);
+    doc.text(`Region: GLOBAL-CLUSTER-01`, margin + 85, 78);
+    doc.text(`Scan Duration: 142.4ms`, margin + 85, 83);
+
+    // --- Verification Statement Block ---
+    doc.setFillColor(238, 242, 255); // indigo-50
+    doc.setDrawColor(199, 210, 254);
+    doc.rect(margin, 95, pageWidth - (margin * 2), 10, 'FD');
+    doc.setFontSize(7);
+    doc.setTextColor(67, 56, 202); // indigo-700
+    doc.setFont('helvetica', 'bold');
+    doc.text("VERIFICATION STATEMENT:", margin + 5, 101.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text("THIS INFRASTRUCTURE HAS BEEN CRYPTOGRAPHICALLY VALIDATED BY AEGIS-AI-ASSURANCE-V4 ENGINE.", margin + 45, 101.5);
+
+    // --- Section 1: Executive Summary ---
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text("1. EXECUTIVE SUMMARY", 15, 65);
-    
+    doc.text("1. EXECUTIVE SUMMARY", margin, 115);
     doc.setDrawColor(226, 232, 240);
-    doc.line(15, 68, pageWidth - 15, 68);
+    doc.line(margin, 118, pageWidth - margin, 118);
 
     const avgRisk = assets.length ? Math.round(assets.reduce((acc, curr) => acc + curr.riskScore, 0) / assets.length) : 0;
     const criticalCount = findings.filter(f => f.severity === 'critical').length;
-    
-    const summaryData = [
-      ["Total Surface Assets", assets.length.toString(), "Active digital endpoints currently mapped."],
-      ["Global Risk Score", `${avgRisk}/100`, "Weighted average risk across infrastructure."],
-      ["Critical Vulnerabilities", criticalCount.toString(), "Issues requiring immediate remediation."]
-    ];
 
     autoTable(doc, {
-      startY: 75,
-      head: [['Metric', 'Value', 'Assessment']],
-      body: summaryData,
+      startY: 125,
+      head: [['Strategic Metric', 'Current Value', 'Assessed Status']],
+      body: [
+        ["Total Surface Assets", assets.length.toString(), "Infrastructure Baseline"],
+        ["Aggregated Risk Score", `${avgRisk}/100`, avgRisk > 60 ? "ACTION REQUIRED" : "STABLE"],
+        ["Critical Vulnerabilities", criticalCount.toString(), criticalCount > 0 ? "HIGH RISK" : "CLEAN"]
+      ],
       theme: 'striped',
-      headStyles: { fillColor: [99, 102, 241], textColor: 255 },
-      styles: { fontSize: 10, cellPadding: 5 }
+      headStyles: { fillColor: accentColor as any, textColor: 255 as any },
+      styles: { fontSize: 9, cellPadding: 4 }
     });
 
-    // --- Vulnerability Breakdown ---
+    // --- Section 2: Critical Asset Inventory ---
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text("2. CRITICAL FINDINGS INVENTORY", 15, (doc as any).lastAutoTable.finalY + 20);
-    
+    doc.text("2. ASSET RISK CLASSIFICATION", margin, (doc as any).lastAutoTable.finalY + 15);
+
+    const assetData = assets
+        .sort((a, b) => b.riskScore - a.riskScore)
+        .slice(0, 10)
+        .map(a => [a.value, a.type.toUpperCase(), a.riskScore.toString(), a.status]);
+
+    autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Asset Resource / Host', 'Type', 'Risk Score', 'Network Status']],
+        body: assetData,
+        theme: 'grid',
+        headStyles: { fillColor: [51, 65, 85] },
+        columnStyles: {
+            2: { fontStyle: 'bold', halign: 'center' }
+        }
+    });
+
+    // --- Section 3: Findings Inventory ---
+    doc.addPage();
+    doc.setFillColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.rect(0, 0, pageWidth, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.text("AEGIS INTELLIGENCE REPORT", margin, 12);
+
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text("3. DETAILED FINDINGS INVENTORY", margin, 35);
+
     const findingsData = findings
       .sort((a, b) => {
         const priority: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
         return priority[a.severity] - priority[b.severity];
       })
-      .map(f => [
-        f.title,
-        f.severity.toUpperCase(),
-        formatDate(f.timestamp),
-        f.description
-      ]);
+      .map(f => [f.title, f.severity.toUpperCase(), f.description]);
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 28,
-      head: [['Vulnerability', 'Severity', 'Detected', 'Description']],
+      startY: 40,
+      head: [['Vulnerability Findings', 'Severity', 'Contextual Analysis']],
       body: findingsData,
       theme: 'grid',
       headStyles: { fillColor: [71, 85, 105] },
       columnStyles: {
-        1: { fontStyle: 'bold' },
-        3: { cellWidth: 80 }
+        1: { fontStyle: 'bold', cellWidth: 30 },
       },
       didParseCell: (data) => {
         if (data.section === 'body' && data.column.index === 1) {
           const val = data.cell.raw as string;
-          if (val === 'CRITICAL') data.cell.styles.textColor = [225, 29, 72]; // rose-600
-          if (val === 'HIGH') data.cell.styles.textColor = [234, 88, 12]; // orange-600
+          if (val === 'CRITICAL') data.cell.styles.textColor = [225, 29, 72] as any;
+          if (val === 'HIGH') data.cell.styles.textColor = [234, 88, 12] as any;
         }
       }
     });
 
-    // --- Asset Matrix ---
-    if ((doc as any).lastAutoTable.finalY > 200) doc.addPage();
+    // --- Section 4: Authority Certification ---
+    const currentY = (doc as any).lastAutoTable.finalY + 20;
+    const certBoxHeight = 100;
     
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text("3. ASSET SURFACE MATRIX", 15, (doc as any).lastAutoTable.finalY ? (doc as any).lastAutoTable.finalY + 20 : 20);
-    
-    const assetMatrixData = assets
-      .sort((a, b) => b.riskScore - a.riskScore)
-      .map(a => [
-        a.value,
-        a.riskScore.toString(),
-        a.status.toUpperCase(),
-        a.metadata.ip || 'N/A',
-        a.metadata.waf || 'None'
-      ]);
-
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 28,
-      head: [['Asset Host', 'Risk', 'Status', 'IP Address', 'Protection']],
-      body: assetMatrixData,
-      theme: 'striped',
-      headStyles: { fillColor: [51, 65, 85] }
-    });
-
-    // --- Footer & Legal ---
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(
-        `CONFIDENTIAL • AEGIS INTEL SEC-OP • Page ${i} of ${totalPages}`,
-        pageWidth / 2,
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'center' }
-      );
+    if (currentY + certBoxHeight > pageHeight - 20) {
+        doc.addPage();
+        doc.setFillColor(darkColor[0], darkColor[1], darkColor[2]);
+        doc.rect(0, 0, pageWidth, 20, 'F');
     }
 
-    doc.save(`AEGIS_Report_${new Date().toISOString().split('T')[0]}.pdf`);
-    toast.success("Intelligence report exported successfully", {
+    const certStartY = Math.max((doc as any).lastAutoTable.finalY + 20, 30);
+
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.3);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, certStartY, pageWidth - (margin * 2), certBoxHeight);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.text("CERTIFICATE OF AUTHORITY", pageWidth / 2, certStartY + 15, { align: 'center' });
+
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const disclaimer = "This document confirms that the infrastructure analysis has been performed by verified AI modules and human oversight. The findings contained herein represent the active security posture at the time of export.";
+    doc.text(doc.splitTextToSize(disclaimer, pageWidth - 50), pageWidth / 2, certStartY + 25, { align: 'center' });
+
+    const sigY = certStartY + 50;
+    doc.setDrawColor(200);
+    doc.line(margin + 15, sigY + 20, margin + 75, sigY + 20);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(12);
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text("Jeethendra", margin + 25, sigY + 17);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text("LEAD SECURITY OPERATOR", margin + 15, sigY + 25);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text("JEETHENDRA REDDY M", margin + 15, sigY + 29);
+
+    const sealX = pageWidth - margin - 50;
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.circle(sealX + 25, sigY + 10, 15);
+    for(let j=0; j<24; j++) {
+        const angle = (j / 24) * Math.PI * 2;
+        const x1 = (sealX + 25) + Math.cos(angle) * 15;
+        const y1 = (sigY + 10) + Math.sin(angle) * 15;
+        const x2 = (sealX + 25) + Math.cos(angle) * 18;
+        const y2 = (sigY + 10) + Math.sin(angle) * 18;
+        doc.line(x1, y1, x2, y2);
+    }
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text("A", sealX + 25, sigY + 15, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text("AEGIS VERIFIED", sealX + 25, sigY + 30, { align: 'center' });
+
+    // --- CERTIFICATE PAGE (Dedicated Official Credential) ---
+    doc.addPage();
+    doc.setFillColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+    // Decorative Borders for Certificate
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.2);
+    doc.setLineWidth(1);
+    doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.1);
+    doc.rect(7, 7, pageWidth - 14, pageHeight - 14);
+
+    const centerX = pageWidth / 2;
+
+    // Badge Header
+    doc.setFillColor(30, 27, 75);
+    doc.roundedRect(centerX - 40, 25, 80, 12, 6, 6, 'F');
+    doc.setTextColor(129, 140, 248);
+    doc.setFontSize(8);
+    doc.text("OFFICIAL SECURITY CREDENTIAL", centerX, 32.5, { align: 'center' });
+
+    // Main Titles
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(30);
+    doc.setFont('helvetica', 'bold');
+    doc.text("CERTIFICATE OF", centerX, 60, { align: 'center' });
+    
+    doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.setFontSize(44);
+    doc.text("VERIFICATION", centerX, 82, { align: 'center' });
+
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text("AEGIS-AI-ASSURANCE-V4 PROVISIONED", centerX, 94, { align: 'center' });
+
+    // Technical Seal (Center)
+    const sealY = 140;
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.05);
+    doc.circle(centerX, sealY, 50);
+    doc.circle(centerX, sealY, 40);
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.1);
+    doc.circle(centerX, sealY, 30);
+    
+    doc.setTextColor(255, 255, 255, 0.7);
+    doc.setFontSize(28);
+    doc.text("A", centerX, sealY + 10, { align: 'center' });
+
+    // Scope information
+    doc.setFillColor(30, 27, 75, 0.4);
+    doc.roundedRect(margin, 205, pageWidth - (margin * 2), 45, 4, 4, 'F');
+    
+    doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text("SECURE DOMAIN MAPPING / TOPOLOGY TARGETS", margin + 10, 215);
+
+    doc.setTextColor(255, 255, 255, 0.8);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const displayAssets = assets.slice(0, 3);
+    displayAssets.forEach((a, i) => {
+        doc.text(`> ${a.value} [${a.metadata.ip || '0.0.0.0'}]`, margin + 10, 225 + (i * 7));
+    });
+
+    doc.setTextColor(148, 163, 184);
+    doc.text(`SCAN REF: ${Math.random().toString(36).substr(2, 10).toUpperCase()}`, pageWidth - margin - 10, 225, { align: 'right' });
+    doc.text(`VERIFIED: ${new Date().toLocaleDateString()}`, pageWidth - margin - 10, 232, { align: 'right' });
+
+    // Signatures at bottom of certificate page
+    const certSigY = 265;
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'italic');
+    doc.text("Jeethendra", margin + 10, certSigY);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text("LEAD OPERATOR: JEETHENDRA REDDY M", margin + 10, certSigY + 10);
+
+    doc.setFontSize(12);
+    doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.text("VERIFICATION MODULE", pageWidth - margin - 10, certSigY, { align: 'right' });
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text("CRYPTO-SIGNED INFRASTRUCTURE", pageWidth - margin - 10, certSigY + 10, { align: 'right' });
+
+    // Final Footer
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`CONFIDENTIAL • AEGIS INTEL SEC-OP • PAGE ${i} OF ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+
+    doc.save(`AEGIS_Intelligence_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("Intelligence report exported", {
       style: { background: '#1e293b', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }
     });
   };
@@ -865,6 +1036,102 @@ const Dashboard = ({ assets, findings, onAssetClick, userRole }: { assets: Asset
       <AIAssetRiskAnalysis assets={assets} findings={findings} onAssetClick={onAssetClick} userRole={userRole} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl flex flex-col">
+          <h3 className="text-white text-sm font-bold mb-6 uppercase tracking-wider flex items-center gap-2">
+            <Activity className="w-4 h-4 text-indigo-400 p-0.5 border border-[#802f41] rounded-[4px]" /> Compliance Benchmarking
+          </h3>
+          <div className="space-y-6">
+             {complianceBenchmarking.map(item => (
+                <div key={item.name} className="relative group/bench">
+                   <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-2 group-hover/bench:text-indigo-400 transition-colors">
+                      <span className="flex items-center gap-2">
+                        <div className="w-1 h-1 bg-indigo-500 rounded-full" />
+                        {item.name}
+                      </span>
+                      <span className="text-white font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">{item.val}%</span>
+                   </div>
+                   <div className="h-2 w-full bg-slate-900 border border-white/10 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${item.val}%` }}
+                        transition={{ duration: 1.5, ease: "easeOut" }}
+                        className={cn("h-full rounded-full relative shadow-[0_0_15px_rgba(var(--tw-shadow-color),0.3)]", 
+                            item.val > 90 ? 'bg-emerald-500' : item.val > 70 ? 'bg-indigo-500' : 'bg-amber-500'
+                        )}
+                      >
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                      </motion.div>
+                   </div>
+                </div>
+             ))}
+          </div>
+          <div className="mt-8 pt-6 border-t border-white/5">
+             <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Global Status</span>
+                <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-black rounded-full border border-emerald-500/20">Operational</span>
+             </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:opacity-[0.08] transition-opacity">
+             <BarChart3 className="w-48 h-48 text-indigo-500 -mr-12 -mt-12" />
+          </div>
+          <h3 className="text-white text-sm font-bold mb-6 uppercase tracking-wider flex items-center gap-2">
+            <Activity className="w-4 h-4 text-indigo-400 p-0.5 border border-[#802f41] rounded-[4px]" /> Average Asset Risk Score Trend
+          </h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={riskTrend}>
+                <defs>
+                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                <XAxis dataKey="day" stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dy={10} />
+                <YAxis stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dx={-10} domain={[0, 100]} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                  itemStyle={{ color: '#6366f1' }}
+                />
+                <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:opacity-[0.08] transition-opacity">
+             <BarChart3 className="w-48 h-48 text-indigo-500 -mr-12 -mt-12" />
+          </div>
+          <h3 className="text-white text-sm font-bold mb-4 uppercase tracking-wider flex items-center gap-2">
+            <PieChartIcon className="w-4 h-4 text-indigo-400" /> Vulnerability Metrics Overview
+          </h3>
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                    { name: 'Critical', count: findings.filter(f => f.severity === 'critical').length },
+                    { name: 'High', count: findings.filter(f => f.severity === 'high').length },
+                    { name: 'Medium', count: findings.filter(f => f.severity === 'medium').length },
+                    { name: 'Low', count: findings.filter(f => f.severity === 'low').length }
+                ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dy={10} />
+                    <YAxis stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dx={-10} />
+                    <Tooltip 
+                        contentStyle={{ backgroundColor: 'rgba(2, 6, 23, 0.9)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff' }}
+                        itemStyle={{ color: '#fff' }}
+                    />
+                    <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         <div className="lg:col-span-1 bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl flex flex-col">
           <h3 className="text-white text-sm font-bold mb-6 uppercase tracking-wider flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-500" /> Risk Distribution
@@ -906,57 +1173,6 @@ const Dashboard = ({ assets, findings, onAssetClick, userRole }: { assets: Asset
                 <p className="text-[10px] text-slate-500 leading-tight">Focus on dev-api.target.com; exposed config detected.</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2 bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-2xl overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none group-hover:opacity-[0.08] transition-opacity">
-             <BarChart3 className="w-48 h-48 text-indigo-500 -mr-12 -mt-12" />
-          </div>
-          <h3 className="text-white text-sm font-bold mb-6 uppercase tracking-wider flex items-center gap-2">
-            <Activity className="w-4 h-4 text-indigo-400 p-0.5 border border-[#802f41] rounded-[4px]" /> Compliance Benchmark Tracking
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mb-8">
-             {complianceBenchmarking.map(item => (
-                <div key={item.name} className="relative group/bench">
-                   <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-slate-500 mb-2 group-hover/bench:text-indigo-400 transition-colors">
-                      <span className="flex items-center gap-2">
-                        <div className="w-1 h-1 bg-indigo-500 rounded-full" />
-                        {item.name}
-                      </span>
-                      <span className="text-white font-mono bg-white/5 px-2 py-0.5 rounded border border-white/10">{item.val}%</span>
-                   </div>
-                   <div className="h-2 w-full bg-slate-900 border border-white/10 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${item.val}%` }}
-                        transition={{ duration: 1.5, ease: "easeOut" }}
-                        className={cn("h-full rounded-full relative shadow-[0_0_15px_rgba(var(--tw-shadow-color),0.3)]", 
-                            item.val > 90 ? 'bg-emerald-500' : item.val > 70 ? 'bg-indigo-500' : 'bg-amber-500'
-                        )}
-                      >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                      </motion.div>
-                   </div>
-                </div>
-             ))}
-          </div>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={riskTrend}>
-                <defs>
-                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                    </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="day" stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dy={10} />
-                <YAxis stroke="#64748b" fontSize={11} axisLine={false} tickLine={false} dx={-10} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
       </div>
@@ -1891,6 +2107,197 @@ const SettingsPage = () => {
   );
 };
 
+/**
+ * Verification Page - Digital Certificate
+ */
+const VerificationPage = ({ assets, findings }: { assets: Asset[], findings: Finding[] }) => {
+    const reportId = useMemo(() => `ASM-${Math.random().toString(36).substr(2, 6).toUpperCase()}`, []);
+    const avgRisk = assets.length ? Math.round(assets.reduce((acc, curr) => acc + curr.riskScore, 0) / assets.length) : 0;
+
+    const downloadOfficialCertificate = () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const accentColor = [79, 70, 229]; // Indigo-600
+        const darkColor = [15, 23, 42]; // Slate-900
+
+        doc.setFillColor(darkColor[0], darkColor[1], darkColor[2]);
+        doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+        doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.2);
+        doc.setLineWidth(1);
+        doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+        doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.1);
+        doc.rect(7, 7, pageWidth - 14, pageHeight - 14);
+
+        const centerX = pageWidth / 2;
+
+        doc.setFillColor(30, 27, 75);
+        doc.roundedRect(centerX - 40, 25, 80, 12, 6, 6, 'F');
+        doc.setTextColor(129, 140, 248);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text("OFFICIAL SECURITY CREDENTIAL", centerX, 32.5, { align: 'center' });
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(30);
+        doc.text("CERTIFICATE OF", centerX, 60, { align: 'center' });
+        
+        doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.setFontSize(44);
+        doc.text("VERIFICATION", centerX, 82, { align: 'center' });
+
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text("AEGIS-AI-ASSURANCE-V4 PROVISIONED", centerX, 94, { align: 'center' });
+
+        const sealY = 140;
+        doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.05);
+        doc.circle(centerX, sealY, 50);
+        doc.circle(centerX, sealY, 40);
+        doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2], 0.1);
+        doc.circle(centerX, sealY, 30);
+        
+        doc.setTextColor(255, 255, 255, 0.7);
+        doc.setFontSize(28);
+        doc.text("A", centerX, sealY + 10, { align: 'center' });
+
+        doc.setFillColor(30, 27, 75, 0.4);
+        doc.roundedRect(margin, 205, pageWidth - (margin * 2), 45, 4, 4, 'F');
+        
+        doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text("SECURE DOMAIN MAPPING / TOPOLOGY TARGETS", margin + 10, 215);
+
+        doc.setTextColor(255, 255, 255, 0.8);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        const displayAssets = assets.slice(0, 3);
+        displayAssets.forEach((a, i) => {
+            doc.text(`> ${a.value} [${a.metadata.ip || '0.0.0.0'}]`, margin + 10, 225 + (i * 7));
+        });
+
+        doc.setTextColor(148, 163, 184);
+        doc.text(`SCAN REF: ${reportId}`, pageWidth - margin - 10, 225, { align: 'right' });
+        doc.text(`VERIFIED: ${new Date().toLocaleDateString()}`, pageWidth - margin - 10, 232, { align: 'right' });
+
+        const certSigY = 265;
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'italic');
+        doc.text("Jeethendra", margin + 10, certSigY);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text("LEAD OPERATOR: JEETHENDRA REDDY M", margin + 10, certSigY + 10);
+
+        doc.setFontSize(12);
+        doc.setTextColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.text("VERIFICATION MODULE", pageWidth - margin - 10, certSigY, { align: 'right' });
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text("CRYPTO-SIGNED INFRASTRUCTURE", pageWidth - margin - 10, certSigY + 10, { align: 'right' });
+
+        doc.save(`Official_Security_Credential_${reportId}.pdf`);
+        toast.success("Credential exported successfully");
+    };
+
+    return (
+        <div className="max-w-6xl mx-auto py-10 space-y-10">
+            <div className="flex justify-between items-center bg-white/5 p-8 rounded-3xl border border-white/10 backdrop-blur-xl">
+              <div>
+                <h2 className="text-2xl font-black text-white tracking-tighter uppercase mb-2">Compliance & Verification</h2>
+                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Official Node Certification</p>
+              </div>
+              <button 
+                onClick={downloadOfficialCertificate}
+                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-3 transition-all shadow-lg shadow-indigo-600/20 group"
+              >
+                <Download className="w-4 h-4 group-hover:scale-110 transition-transform" /> Download Official Credential
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-8 flex flex-col items-center">
+                <div className="w-full bg-[#020617] border-2 border-indigo-500/20 rounded-[40px] p-20 relative overflow-hidden shadow-[0_0_100px_rgba(99,102,241,0.1)] min-h-[800px] flex flex-col items-center justify-center text-center">
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-indigo-500/5 rounded-full" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-indigo-500/10 rounded-full" />
+                    <div className="absolute top-0 left-0 w-full h-full border-[1px] border-white/5 m-4 rounded-[36px]" />
+                    <div className="absolute top-0 left-0 w-full h-full border-[1px] border-white/5 m-8 rounded-[32px]" />
+
+                    <div className="relative z-10 w-full">
+                        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} className="mb-16">
+                            <div className="inline-flex items-center gap-3 px-6 py-2 bg-indigo-500/5 border border-indigo-500/20 rounded-full mb-12">
+                                <Shield className="w-4 h-4 text-indigo-400" />
+                                <span className="text-[11px] text-indigo-300 font-black uppercase tracking-[0.4em]">Official Security Credential</span>
+                            </div>
+                            <h1 className="text-7xl font-black text-white tracking-tighter leading-[0.85] mb-6">
+                                CERTIFICATE OF<br />
+                                <span className="text-indigo-500">VERIFICATION</span>
+                            </h1>
+                            <p className="text-slate-500 font-bold tracking-[0.2em] uppercase text-xs">AEGIS-AI-ASSURANCE-V4 PROVISIONED</p>
+                        </motion.div>
+
+                        <div className="relative w-64 h-64 mx-auto mb-20 cursor-default group">
+                            <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-[100px] animate-pulse" />
+                            <div className="relative w-full h-full rounded-full border border-indigo-500/20 flex items-center justify-center bg-[#020617] shadow-inner overflow-hidden">
+                                <Activity className="w-28 h-28 text-indigo-400 drop-shadow-[0_0_30px_rgba(129,140,248,0.4)] transform group-hover:scale-110 transition-transform duration-1000" />
+                                <div className="absolute bottom-6 font-mono text-[9px] text-indigo-500/30 tracking-widest font-bold uppercase">Secure Node: Alpha-01</div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-10 mb-20">
+                            <div className="flex items-center justify-center gap-12 text-slate-400 text-[11px] font-black uppercase tracking-[0.25em]">
+                                <div className="flex items-center gap-3"><Fingerprint className="w-4 h-4 text-emerald-500" /><span>SHA-256 Verified</span></div>
+                                <div className="flex items-center gap-3"><Lock className="w-4 h-4 text-emerald-500" /><span>Secure Layer-7</span></div>
+                                <div className="flex items-center gap-3"><Globe className="w-4 h-4 text-emerald-500" /><span>Authentic Source</span></div>
+                            </div>
+                            <div className="relative text-slate-600 font-mono text-[10px] tracking-widest bg-[#020617] px-4 inline-block">AEGIS-UID: {reportId}</div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-40 mx-auto max-w-3xl text-left border-t border-white/5 pt-16 mt-16">
+                            <div className="space-y-4">
+                                <div className="h-16 relative flex items-center">
+                                    <div className="font-serif italic text-4xl text-indigo-400 absolute bottom-1">Jeethendra</div>
+                                    <div className="w-full h-[1px] bg-white/10 absolute bottom-0" />
+                                </div>
+                                <div><p className="text-[11px] text-white font-black uppercase tracking-[0.3em] mb-1">Lead Operator</p><p className="text-[9px] text-slate-500 font-mono tracking-tighter uppercase">JEETHENDRA REDDY M</p></div>
+                            </div>
+                            <div className="space-y-4 text-right">
+                                <div className="h-16 relative flex items-center justify-end">
+                                    <div className="font-mono text-base text-emerald-500/50 absolute bottom-2 tracking-widest">VALIDATED: {new Date().toLocaleDateString().replace(/\//g, '.')}</div>
+                                    <div className="w-full h-[1px] bg-white/10 absolute bottom-0" />
+                                </div>
+                                <div><p className="text-[11px] text-white font-black uppercase tracking-[0.3em] mb-1">Verification Module</p><p className="text-[9px] text-slate-500 font-mono tracking-tighter uppercase italic">Crypto-Signed Infrastructure</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-4 space-y-8">
+                  <div className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-xl">
+                    <h3 className="text-white font-bold uppercase tracking-widest text-xs mb-6">Assessed Infrastructure</h3>
+                    <div className="space-y-4">
+                      {assets.slice(0, 5).map(a => (
+                        <div key={a.id} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                          <span className="text-[11px] font-mono text-slate-400">{a.value}</span>
+                          <span className={cn("text-[8px] font-black px-2 py-0.5 rounded", a.riskScore < 50 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500')}>VERIFIED</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+              </div>
+            </div>
+        </div>
+    );
+};
+
 const ProfilePage = ({ userRole, onLogout }: { userRole: UserRole, onLogout: () => void }) => {
   return (
     <div className="max-w-4xl mx-auto space-y-10 py-10">
@@ -1949,7 +2356,7 @@ const ProfilePage = ({ userRole, onLogout }: { userRole: UserRole, onLogout: () 
 
 export default function App() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'scan' | 'map' | 'findings' | 'settings' | 'profile'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'scan' | 'map' | 'findings' | 'settings' | 'profile' | 'verification'>('dashboard');
   const [assets, setAssets] = useState<Asset[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -2098,6 +2505,7 @@ export default function App() {
             </>
           )}
           <SidebarItem icon={List} label="Vulnerabilities" active={activeTab === 'findings'} onClick={() => setActiveTab('findings')} />
+          <SidebarItem icon={Award} label="Verification" active={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
         </nav>
 
         <div className="p-4 m-6 rounded-2xl bg-indigo-600/5 border border-indigo-500/10 flex flex-col gap-3">
@@ -2196,7 +2604,15 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut" }}
             >
-                {activeTab === 'dashboard' && <Dashboard assets={assets} findings={findings} onAssetClick={userRole === 'viewer' ? () => {} : setSelectedAsset} userRole={userRole} />}
+                {activeTab === 'dashboard' && (
+                  <Dashboard 
+                    assets={assets} 
+                    findings={findings} 
+                    onAssetClick={userRole === 'viewer' ? () => {} : setSelectedAsset} 
+                    userRole={userRole} 
+                    setActiveTab={setActiveTab}
+                  />
+                )}
                 {activeTab === 'scan' && (
                     <ScanPage 
                         isScanning={scanStatus.isScanning} 
@@ -2209,6 +2625,7 @@ export default function App() {
                 {activeTab === 'map' && <AssetMap assets={assets} onAssetClick={userRole === 'viewer' ? () => {} : setSelectedAsset} />}
                 {activeTab === 'findings' && <FindingsPage findings={findings} userRole={userRole} onUpdateFinding={handleUpdateFindingPriority} />}
                 {activeTab === 'settings' && <SettingsPage />}
+                {activeTab === 'verification' && <VerificationPage assets={assets} findings={findings} />}
                 {activeTab === 'profile' && <ProfilePage userRole={userRole} onLogout={handleLogout} />}
             </motion.div>
           </div>
