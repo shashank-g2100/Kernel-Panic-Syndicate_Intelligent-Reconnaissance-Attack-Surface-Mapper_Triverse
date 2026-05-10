@@ -49,6 +49,3 @@ This platform is intended for authorized security testing and perimeter defense 
 
 ## 📜 License
 Apache-2.0
-
-## Contributors
-Darshini N
